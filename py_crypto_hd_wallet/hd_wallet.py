@@ -121,6 +121,39 @@ class HdWallet:
         else:
             self.__SetData(HdWalletDataTypes.ADDRESSES, HdWalletAddresses.FromBipObj(bip_obj, 1))
 
+    def GetAddresByIndex(self, addr_idx = 0, account_idx = 0, change_idx = HdWalletChanges.CHAIN_EXT):
+        # Check parameters
+        if not isinstance(change_idx, HdWalletChanges):
+            raise TypeError("Change index is not an enumerative of HdWalletChanges")
+
+        # Save the BIP object
+        bip_obj = self.m_bip_obj
+
+        # Set master keys and derive purpose if correct level
+        if bip_obj.IsLevel(Bip44Levels.MASTER):
+            self.__SetKeys(HdWalletDataTypes.MASTER_KEY, bip_obj)
+            bip_obj = bip_obj.Purpose()
+        # Set purpose keys and derive coin if correct level
+        if bip_obj.IsLevel(Bip44Levels.PURPOSE):
+            self.__SetKeys(HdWalletDataTypes.PURPOSE_KEY, bip_obj)
+            bip_obj = bip_obj.Coin()
+        # Set coin keys and derive account if correct level
+        if bip_obj.IsLevel(Bip44Levels.COIN):
+            self.__SetKeys(HdWalletDataTypes.COIN_KEY, bip_obj)
+            self.__SetData(HdWalletDataTypes.ACCOUNT_IDX, account_idx)
+            bip_obj = bip_obj.Account(account_idx)
+        # Set account keys and derive change if correct level
+        if bip_obj.IsLevel(Bip44Levels.ACCOUNT):
+            self.__SetKeys(HdWalletDataTypes.ACCOUNT_KEY, bip_obj)
+            self.__SetData(HdWalletDataTypes.CHANGE_IDX, int(change_idx))
+            bip_obj = bip_obj.Change(change_idx.ToBip44Change())
+
+        if not bip_obj.IsLevel(Bip44Levels.CHANGE):
+            raise AssertionError("Unsupported.")
+
+        bip_obj_addr = bip_obj.AddressIndex(addr_idx)
+        return HdWalletKeys.FromBipObj(bip_obj_addr)
+
     def IsWatchOnly(self):
         """ Get if the wallet is watch-only.
 
